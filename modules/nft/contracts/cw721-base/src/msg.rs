@@ -17,6 +17,7 @@ pub struct InstantiateMsg {
     pub minter: Option<String>,
 
     pub withdraw_address: Option<String>,
+
 }
 
 /// This is like Cw721ExecuteMsg but we add a Mint command for an owner

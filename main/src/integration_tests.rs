@@ -69,5 +69,10 @@ mod tests {
             )
             .unwrap();
         }
+
+        #[test]
+        fn create_transaction_nft_to_token(){
+
+        }
     }
 }

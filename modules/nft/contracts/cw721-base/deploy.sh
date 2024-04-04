@@ -1,17 +1,7 @@
-if [ -z "${contract}" ];
-then contract=/cw721_base.wasm
-fi 
-if [ -z "${keyname}" ];
-then keyname=admin
-fi 
-if [ -z "${password}" ];
-then password="12345678\n"
-fi 
+
 
 seid=~/go/bin/seid
-code=$(printf $password | $seid tx wasm store $contract -y --from=$keyname --chain-id=sei-chain --gas=10000000 --fees=10000000usei --broadcast-mode=block | grep -A 1 "code_id" | sed -n 's/.*value: "//p' | sed -n 's/"//p')
+code=$($seid tx wasm store nft.wasm -y --from=wallet --chain-id=atlantic-2 --broadcast-mode=block --gas=2400000 --fees=48000usei --node=https://sei-testnet-rpc.polkachu.com/ | grep -A 1 "code_id" | sed -n 's/.*value: "//p' | sed -n 's/"//p')
 printf "Code id is %s\n" $code
-admin_addr=$(printf $password |$seid keys show $keyname | grep -A 1 "address" | sed -n 's/.*address: //p')
-printf "Admin addr id is %s\n" $admin_addr
-addr=$(printf $password |$seid tx wasm instantiate $code '{"count": 0}' --from $keyname --broadcast-mode=block --label "counter" --chain-id sei-chain --gas=30000000 --fees=3000000usei --admin=$admin_addr -y | grep -A 1 -m 1 "key: _contract_address" | sed -n 's/.*value: //p' | xargs)
-printf "Deployed counter address is %s\n" $addr
+addr=$($seid tx wasm instantiate $code '{"name": "ChickEgg","symbol": "Chick","minter": "sei1qezw67t64fl9zzpu8hcvd9kxlzun90vxyfjf8qe5qxumhz3dcrdsrhet72","frozen": false,"hidden_metadata": false,"placeholder_token_uri": null}' --from=wallet --broadcast-mode=block --label "STUDY1" --chain-id atlantic-2 --gas=300000 --fees=30000usei --admin=sei18dl724gejf2l6eza9x5gg00s4nx4hkqs5dkva4 -y --node=https://sei-testnet-rpc.polkachu.com | grep -A 1 -m 1 "key: _contract_address" | sed -n 's/.*value: //p' | xargs)
+printf "Deployed study address is %s\n" $addr

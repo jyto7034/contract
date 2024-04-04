@@ -74,11 +74,14 @@ pub mod execute {
 
     use super::*;
 
-    fn create_transaction_nft_to_token(deps: Deps, _info: MessageInfo, _env: Env, _permission: &Permission, config: Config, income_token: String) -> Result<Response, ContractError>{
+    fn create_transaction_nft_to_token(deps: Deps, _info: MessageInfo, _env: Env,income_nft: String) -> Result<Response, ContractError>{
+        let config = CONFIG.load(deps.storage)?;
+        let permission = PERMISSION.load(deps.storage)?;
+        
         // sender 가 잘못된 nft 를 보내는 경우.
         // 존재하지 않는 nft 을 보내는 경우 Wasm runtime Failed 뜸.
-        let res = helpers::query_owner_of(deps, config.cw721_contract_address.clone(), income_token.clone())?;
-        if res.owner == helpers::get_contract_address(_env)?{
+        let res = helpers::query_owner_of(deps, config.cw721_contract_address.clone(), income_nft.clone())?;
+        if res.owner == helpers::get_contract_address(_env.clone())?{
             return Err(ContractError::DoesNotOwnNFT);
         }
 
@@ -87,7 +90,7 @@ pub mod execute {
         if balances.is_empty() {
             return Err(ContractError::BalanceQueryFailed)
         }
-        let wallet = balances.iter().find(|wallet| { wallet.denom == _permission.token_address });
+        let wallet = balances.iter().find(|wallet| { wallet.denom == permission.token_address });
         if let Some(wallet) = wallet{
             if wallet.amount < Uint128::new(800000){
                 return Err(ContractError::NotEnoughContractTokens)
@@ -95,29 +98,39 @@ pub mod execute {
         }
         
         // 토큰 전송
-        helpers::send_tokens(config.recipient, vec![coin(config.exchange_rate, _permission.token_address.clone())], "send_token");
-
+        helpers::send_tokens(config.recipient, vec![coin(config.exchange_rate, permission.token_address.clone())], "send_token");
         
         Ok(Response::new().add_attribute("create_transaction_nft_to_token", "Created"))
     }
     
 
     // token 으로 nft 를 사는 경우
-    fn create_transaction_token_to_nft(deps: Deps, info: MessageInfo, permission: &Permission, config: &Config, wanted_token: String) -> Result<Response, ContractError>{
+    fn create_transaction_token_to_nft(deps: Deps, info: MessageInfo, _env: Env, wanted_nft: String) -> Result<Response, ContractError>{
+        let config = CONFIG.load(deps.storage)?;
+        let permission = PERMISSION.load(deps.storage)?;
+        
         // sender 가 잘못된 토큰을 보낸 경우.
         if info.funds[0].denom.clone() != permission.token_address
         {
             return Err(ContractError::UnauthorizedToken);
         }
         
-        // NFT 가 남아있는가?
-        let res = helpers::query_num_of_nft(deps, config.cw721_contract_address.clone())?;
-        if res.count <= 0{
-            return Err(ContractError::NotEnoughContractNFT)
+        // 구매 하고자 하는 nft 가 유효한가?
+        let res = helpers::query_owner_of(deps, config.cw721_contract_address.clone(), wanted_nft.clone())?;
+        if res.owner == helpers::get_contract_address(_env.clone())?{
+            return Err(ContractError::DoesNotOwnNFT);
         }
+
+        // let res = helpers::query_num_of_nft(deps, config.cw721_contract_address.clone())?;
+        // if res.count <= 0{
+        //     return Err(ContractError::NotEnoughContractNFT)
+        // }
+
+        // 전달 받은 token 을 contract 의 지갑에 전송
+        helpers::send_tokens(Addr::unchecked(helpers::get_contract_address(_env.clone())?), vec![coin(config.exchange_rate, permission.token_address.clone())], "send_token");
         
         // NFT 전송
-        helpers::execute_transfer_nft(config.cw721_contract_address.clone(), config.recipient.clone().into_string(), wanted_token.clone())?;
+        helpers::execute_transfer_nft(config.cw721_contract_address.clone(), config.recipient.clone().into_string(), wanted_nft.clone())?;
         
         Ok(Response::new().add_attribute("create_transaction_token_to_nft", "Created"))
     }
@@ -127,8 +140,7 @@ pub mod execute {
         info: MessageInfo,
     ) -> Result<Response, ContractError>{
         let config = CONFIG.load(deps.storage)?;
-        let permission = PERMISSION.load(deps.storage)?;
-        
+
         // --amount 를 통해 들어온 자금이 없을 때.
         if info.funds.is_empty() {
             return Err(ContractError::NotReceivedFunds);
@@ -143,8 +155,8 @@ pub mod execute {
 
         TRANSACTION_STATUS.save(deps.storage, &true)?;
         match &config.product {
-            Product::NFT(token) => create_transaction_nft_to_token(deps.as_ref(), info, _env, &permission, config.clone(), token.clone()),
-            Product::TOKEN(token) => create_transaction_token_to_nft(deps.as_ref(), info, &permission, &config, token.clone()),
+            Product::NFT(token) => create_transaction_nft_to_token(deps.as_ref(), info, _env, token.clone()),
+            Product::TOKEN(token) => create_transaction_token_to_nft(deps.as_ref(), info, _env, token.clone()),
             Product::NONE => todo!(),
         }
     }
