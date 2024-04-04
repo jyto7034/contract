@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::helpers::CwTemplateContract;
+    use crate::msg::ExecuteMsg;
     use crate::msg::InstantiateMsg;
-    use cosmwasm_std::{Addr, Coin, Empty, Uint128};
+    use cosmwasm_std::{coins, Addr, Empty};
     use cw_multi_test::{App, AppBuilder, Contract, ContractWrapper, Executor};
 
     pub fn contract_template() -> Box<dyn Contract<Empty>> {
@@ -14,44 +14,60 @@ mod tests {
         Box::new(contract)
     }
 
-    const USER: &str = "USER";
     const ADMIN: &str = "ADMIN";
     const NATIVE_DENOM: &str = "denom";
 
     fn mock_app() -> App {
         AppBuilder::new().build(|router, _, storage| {
+            // 이는 특정 주소에 대하여 자금을 설정하는 단계이다.
             router
                 .bank
                 .init_balance(
                     storage,
-                    &Addr::unchecked(USER),
-                    vec![Coin {
-                        denom: NATIVE_DENOM.to_string(),
-                        amount: Uint128::new(1),
-                    }],
+                    &Addr::unchecked(ADMIN),
+                    coins(100u128, NATIVE_DENOM.to_string()),
                 )
                 .unwrap();
         })
     }
 
-    fn proper_instantiate() -> (App, CwTemplateContract) {
-        let mut app = mock_app();
-        let cw_template_id = app.store_code(contract_template());
+    mod contract {
+        use super::*;
 
-        let msg = InstantiateMsg { count: 1i32 };
-        let cw_template_contract_addr = app
-            .instantiate_contract(
-                cw_template_id,
+        #[test]
+        fn proper_instantiate() {
+            let mut app = mock_app();
+            let cw_template_id = app.store_code(contract_template());
+    
+            let msg = InstantiateMsg {
+                token_address: Addr::unchecked(NATIVE_DENOM),
+                recipient: "test".to_string(),
+                expiration: None,
+                product: "None".to_string(),
+                token_id: Some("1004".to_string()),
+                cw721_contract_address: "".to_string(),
+            };
+    
+            // contract 를 인스턴스화 시키는 함수
+            let cw_template_contract_addr = app
+                .instantiate_contract(
+                    cw_template_id,
+                    Addr::unchecked(ADMIN),
+                    &msg,
+                    &[],
+                    "test",
+                    None,
+                )
+                .unwrap();
+    
+            // contract 에 ExecuteMsg 전송
+            app.execute_contract(
                 Addr::unchecked(ADMIN),
-                &msg,
-                &[],
-                "test",
-                None,
+                cw_template_contract_addr.clone(),
+                &ExecuteMsg::AddTokenToContract {},
+                &coins(5, "denom"),
             )
             .unwrap();
-
-        let cw_template_contract = CwTemplateContract(cw_template_contract_addr);
-
-        (app, cw_template_contract)
+        }
     }
 }
