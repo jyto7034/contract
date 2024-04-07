@@ -1,22 +1,27 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cw_utils::Expiration;
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Uint128};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub token_address: Addr,
-    pub recipient: String,
-    pub expiration: Option<Expiration>,
-    pub product: String,
-    pub token_id: Option<String>,
-    pub cw721_contract_address: String,
+    pub token_address: String,
+    pub nft_contract_address: String,
+    pub exchange_rate: Uint128,
 }
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    CreateTransaction {},
+    CreateTransaction {
+        seller: String,
+        desired_item: String,
+        nft_token_id: String,
+    },
+
+    ApproveTransaction {
+        buyer: String,
+        product: String,
+        nft_token_id: String,
+    },
     AddTokenToContract {},
-    Approve {},
     Refund {},
 }
 
@@ -26,15 +31,14 @@ pub enum QueryMsg {
     #[returns(GetCountResponse)]
     ContractVaultInfo,
 
-
     #[returns(GetTransactionResponse)]
-    IsTransactionOpen,
-    
+    IsTransactionOpen { buyer: String },
+
     #[returns(GetNftOwnerRespone)]
-    GetNftOwner{
+    GetNftOwner {
         contract_addr: String,
         token_id: String,
-    }
+    },
 }
 
 #[cw_serde]
@@ -43,11 +47,11 @@ pub struct GetCountResponse {
 }
 
 #[cw_serde]
-pub struct GetTransactionResponse{
+pub struct GetTransactionResponse {
     pub is_open: bool,
 }
 
 #[cw_serde]
-pub struct GetNftOwnerRespone{
+pub struct GetNftOwnerRespone {
     pub owner_address: String,
 }

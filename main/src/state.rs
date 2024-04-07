@@ -1,48 +1,64 @@
 use cosmwasm_schema::cw_serde;
+use cw_utils::Expiration;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use cw_utils::Expiration;
 
-use cosmwasm_std::Addr;
-use cw_storage_plus::Item;
+use cosmwasm_std::{Addr, Uint128};
+use cw_storage_plus::{Item, Map};
+
+use crate::ContractError;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct Permission {
+pub struct ContractConfig {
     pub token_address: Addr,
     pub admin: Addr,
+    pub nft_contract_address: Addr,
+    pub exchange_rate: Uint128,
 }
 
 #[cw_serde]
-pub struct Config {
-    pub recipient: Addr,
-    pub source: Addr,
-    pub expiration: Option<Expiration>,
-    pub exchange_rate: u128,
+pub struct TransactionInfo {
+    pub buyer: Addr,
+    pub seller: Addr,
+    pub expiration: Expiration,
     pub product: Product,
-    pub cw721_contract_address: Addr,
 }
 
 #[cw_serde]
 pub enum Product {
     NFT(String),
     TOKEN(String),
-    NONE
+    NONE,
 }
 
-impl Product{
-    pub fn new(msg: String, token_id: Option<String>) -> Product{
-        if msg.to_lowercase() == "nft" && token_id.is_some(){
-            return Product::NFT(msg);
-        }else{
-            return  Product::TOKEN(msg);
+impl Product {
+    pub fn get_nft_token(&self) -> Result<String, ContractError>{
+        match &self {
+            Product::NFT(token_id) => Ok(token_id.clone()),
+            Product::TOKEN(token_id) => Ok(token_id.clone()),
+            Product::NONE => Err(ContractError::UnauthorizedToken),
+        }
+    }
+    
+    pub fn new(product_name: String, token_id: String) -> Product {
+        let product_name = product_name.to_lowercase();
+
+        if product_name == "nft" {
+            Product::NFT(token_id)
+        } else {
+            Product::TOKEN(token_id)
         }
     }
 
-    pub fn none() -> Product{
-        return Product::NONE
+    pub fn none() -> Product {
+        return Product::NONE;
     }
 }
 
-pub const PERMISSION: Item<Permission> = Item::new("permission");
-pub const CONFIG: Item<Config> = Item::new("config");
-pub const TRANSACTION_STATUS: Item<bool> = Item::new("check_transaction");
+/*
+= Item::new("check_transaction");
+= Item::new("info");
+= Item::new("config");
+*/
+pub const CONTRACT_CONFIG: Item<ContractConfig> = Item::new("config");
+pub const TRANSACTIONS_MAP: Map<Addr, TransactionInfo> = Map::new("transactions");

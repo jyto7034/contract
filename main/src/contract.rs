@@ -1,13 +1,17 @@
-
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{
+    to_json_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+};
 use cw2::set_contract_version;
+use cw_utils::Expiration;
 
 use crate::error::ContractError;
+use crate::executer::executer;
 use crate::helpers::get_contract_address;
-use crate::msg::{QueryMsg, ExecuteMsg, InstantiateMsg};
-use crate::state::{Config, Permission, Product, CONFIG, PERMISSION, TRANSACTION_STATUS};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::state::TransactionInfo;
+use crate::state::{ContractConfig, Product, CONTRACT_CONFIG, TRANSACTIONS_MAP};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:main";
@@ -20,126 +24,146 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    
-    let permission = Permission {
-        token_address: Addr::unchecked(msg.token_address.as_str()),
-        admin: info.sender.clone(),
+    /*
+              token_address : escrow 에서 사용할 token 의 addr
+                      admin : escrow admin
+       NFT_contract_address : NFT Contract 주소
+              exchange_rate : 교환 비율
+    */
+    let config = ContractConfig {
+        token_address: deps.api.addr_validate(msg.token_address.as_str())?,
+        admin: deps.api.addr_validate(info.sender.as_str())?,
+        nft_contract_address: deps.api.addr_validate(msg.nft_contract_address.as_str())?,
+        exchange_rate: msg.exchange_rate,
     };
-    
-    let config = Config {
-        recipient: deps.api.addr_validate(&msg.recipient)?,
-        source: info.sender,
-        expiration: msg.expiration,
-        exchange_rate: 800000,
-        product: Product::new(msg.product, msg.token_id),
-        cw721_contract_address: deps.api.addr_validate(&msg.cw721_contract_address)?,
-    };
-    
-    println!("Init! {}, {}", permission.admin, permission.token_address);
-    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    
-    if let Some(expiration) = msg.expiration {
-        if expiration.is_expired(&_env.block) {
-            return Err(ContractError::Expired { expiration });
-        }
-    }
 
-    TRANSACTION_STATUS.save(deps.storage, &false)?;
-    PERMISSION.save(deps.storage, &permission)?;
-    CONFIG.save(deps.storage, &config)?;
+    println!("Init! {}, {}", config.admin, config.token_address);
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+    // 유효 기간이 현재보다 이전 인 경우.
+    // if let Some(expiration) = msg.expiration {
+    //     if expiration.is_expired(&env.block) {
+    //         return Err(ContractError::Expired { expiration });
+    //     }
+    // }
+
+    CONTRACT_CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new().add_attribute("method", "instantiate"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    _deps: DepsMut,
-    _env: Env,
+    deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::AddTokenToContract{} => execute::add_token_to_contract(_deps,_env, info),
-        // CreateTransaction 를 실행하면서 --amount 로 자금이 들어와야함.
-        ExecuteMsg::CreateTransaction {} => execute::create_transaction(_deps,_env, info),
-        ExecuteMsg::Approve{}=>todo!(),
-        ExecuteMsg::Refund{}=>todo!(),
+        ExecuteMsg::AddTokenToContract {} => execute::add_token_to_contract(deps, env, info),
+        // 거래 생성.
+        ExecuteMsg::CreateTransaction {
+            seller,
+            desired_item,
+            nft_token_id,
+        } => execute::create_transaction(deps, env, info, seller, desired_item, nft_token_id),
+
+        // 구매자 거래 수락.
+        ExecuteMsg::ApproveTransaction {
+            buyer,
+            product,
+            nft_token_id,
+        } => execute::transaction_approve(deps, env, info, buyer, product, nft_token_id),
+
+        // 거래 실패 시, 자금 반환.
+        ExecuteMsg::Refund {} => todo!(),
     }
 }
 
 pub mod execute {
-    use cosmwasm_std::{coin, BankMsg, Coin, Uint128};
-
-    use crate::helpers;
+    use cosmwasm_std::Addr;
 
     use super::*;
 
-    fn create_transaction_nft_to_token(deps: Deps, _info: MessageInfo, _env: Env,income_nft: String) -> Result<Response, ContractError>{
-        let config = CONFIG.load(deps.storage)?;
-        let permission = PERMISSION.load(deps.storage)?;
-        
-        // sender 가 잘못된 nft 를 보내는 경우.
-        // 존재하지 않는 nft 을 보내는 경우 Wasm runtime Failed 뜸.
-        let res = helpers::query_owner_of(deps, config.cw721_contract_address.clone(), income_nft.clone())?;
-        if res.owner == helpers::get_contract_address(_env.clone())?{
-            return Err(ContractError::DoesNotOwnNFT);
-        }
+    pub fn refund(
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+        buyer: String,
+    ) -> Result<Response, ContractError>{
+        let config = CONTRACT_CONFIG.load(deps.storage)?;
+        let trans_info = TRANSACTIONS_MAP.load(deps.storage, Addr::unchecked(buyer))?;
 
-        // contract 의 token 이 적당한가?
-        let balances = helpers::query_balance(deps, config.cw721_contract_address.clone())?; 
-        if balances.is_empty() {
-            return Err(ContractError::BalanceQueryFailed)
+        if trans_info.expiration.is_expired(&env.block){
+            return Err(ContractError::NotExpired)
         }
-        let wallet = balances.iter().find(|wallet| { wallet.denom == permission.token_address });
-        if let Some(wallet) = wallet{
-            if wallet.amount < Uint128::new(800000){
-                return Err(ContractError::NotEnoughContractTokens)
-            }
-        }
-        
-        // 토큰 전송
-        helpers::send_tokens(config.recipient, vec![coin(config.exchange_rate, permission.token_address.clone())], "send_token");
-        
-        Ok(Response::new().add_attribute("create_transaction_nft_to_token", "Created"))
+        Ok(Response::new())
     }
-    
 
-    // token 으로 nft 를 사는 경우
-    fn create_transaction_token_to_nft(deps: Deps, info: MessageInfo, _env: Env, wanted_nft: String) -> Result<Response, ContractError>{
-        let config = CONFIG.load(deps.storage)?;
-        let permission = PERMISSION.load(deps.storage)?;
-        
-        // sender 가 잘못된 토큰을 보낸 경우.
-        if info.funds[0].denom.clone() != permission.token_address
-        {
-            return Err(ContractError::UnauthorizedToken);
+    pub fn transaction_approve(
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+        buyer: String,
+        product: String,
+        nft_token: String,
+    ) -> Result<Response, ContractError> {
+        let buyer = deps.api.addr_validate(buyer.as_str())?;
+        let tran_config = TRANSACTIONS_MAP.load(deps.storage, buyer)?;
+        let config = CONTRACT_CONFIG.load(deps.storage)?;
+
+        // 거래가 아직 유효한지 확인
+        if tran_config.expiration.is_expired(&env.block) {
+            return Err(ContractError::Expired);
+        }
+
+        // buyer 가 지정한 판매자가 맞는지 확인
+        if tran_config.seller != info.sender {
+            return Err(ContractError::NotDesignatedSeller);
+        }
+
+        // 서로 교환하고자 하는 물건이 맞는지 확인
+        // desired_item 이 nft 인 경우 seller 가 보내는 token_id 와, buyer 가 원하는 nft 가 맞는지 확인
+        if tran_config.product.get_nft_token()? != nft_token {
+            return Err(ContractError::UnauthorizedNft);
         }
         
-        // 구매 하고자 하는 nft 가 유효한가?
-        let res = helpers::query_owner_of(deps, config.cw721_contract_address.clone(), wanted_nft.clone())?;
-        if res.owner == helpers::get_contract_address(_env.clone())?{
-            return Err(ContractError::DoesNotOwnNFT);
+        // 판매 물건이 token 의 경우 들어온 자금이 확실한지 확인.
+        if info.funds[0].amount == config.exchange_rate || info.funds[0].denom == config.token_address{
+            return Err(ContractError::BadFunds);
         }
 
-        // let res = helpers::query_num_of_nft(deps, config.cw721_contract_address.clone())?;
-        // if res.count <= 0{
-        //     return Err(ContractError::NotEnoughContractNFT)
-        // }
+        match Product::new(product, nft_token) {
+            Product::NFT(token_id) => executer::approve_transaction_token_to_nft(&config, &tran_config, token_id.clone())?,
+            Product::TOKEN(_) => executer::approve_transaction_nft_to_token(&config, &tran_config)?,
+            Product::NONE => return Err(ContractError::UnknownError),
+        };
+        
+        // TRANSACTIONS_MAP 에서 해당 거래를 지워야함.
 
-        // 전달 받은 token 을 contract 의 지갑에 전송
-        helpers::send_tokens(Addr::unchecked(helpers::get_contract_address(_env.clone())?), vec![coin(config.exchange_rate, permission.token_address.clone())], "send_token");
-        
-        // NFT 전송
-        helpers::execute_transfer_nft(config.cw721_contract_address.clone(), config.recipient.clone().into_string(), wanted_nft.clone())?;
-        
-        Ok(Response::new().add_attribute("create_transaction_token_to_nft", "Created"))
+        Ok(Response::new())
     }
+
+    // 구매자가 판매자가 응답할 거래 트랜잭션 생성
     pub fn create_transaction(
         deps: DepsMut,
-        _env: Env,
+        env: Env,
         info: MessageInfo,
-    ) -> Result<Response, ContractError>{
-        let config = CONFIG.load(deps.storage)?;
+        seller: String,
+        desired_item: String,
+        token_id: String,
+    ) -> Result<Response, ContractError> {
+        // 한 사람이 여러 transaction 을 생성 못하도록 막음.
+        let transaction_info = TRANSACTIONS_MAP.load(deps.storage, info.sender.clone());
+        if let Err(_) = transaction_info {
+            return Err(ContractError::TransactionAlreadyProgress);
+        }
+
+        // 두 사람이 동시에 한 nft 를 지정 못하도록 막음.
+
+        // seller 는 info.sender 가 될 수 없음.
+
+        let config = CONTRACT_CONFIG.load(deps.storage)?;
 
         // --amount 를 통해 들어온 자금이 없을 때.
         if info.funds.is_empty() {
@@ -147,49 +171,37 @@ pub mod execute {
         }
 
         // funds 의 자금이 교환 비율과 맞지 않을 때.
-        // TODO!!
-        //     funds 가 수수료가 떼진 상태서 오는가?
-        if info.funds[0].amount.u128() != config.exchange_rate {
+        if info.funds[0].amount != config.exchange_rate {
             return Err(ContractError::NotMatchExchangeRate);
         }
 
-        TRANSACTION_STATUS.save(deps.storage, &true)?;
-        match &config.product {
-            Product::NFT(token) => create_transaction_nft_to_token(deps.as_ref(), info, _env, token.clone()),
-            Product::TOKEN(token) => create_transaction_token_to_nft(deps.as_ref(), info, _env, token.clone()),
-            Product::NONE => todo!(),
-        }
-    }
-    
-    pub fn execute_approve(
-        deps: DepsMut,
-        env: Env,
-        _info: MessageInfo,
-    ) -> Result<Response, ContractError> {
-        let config = CONFIG.load(deps.storage)?;
-        // if info.sender != config.arbiter {
-        //     return Err(ContractError::Unauthorized {});
-        // }
-    
-        // throws error if the contract is expired
-        if let Some(expiration) = config.expiration {
-            if expiration.is_expired(&env.block) {
-                return Err(ContractError::Expired { expiration });
+        let transaction_info = TransactionInfo {
+            seller: deps.api.addr_validate(seller.as_str())?,
+            buyer: info.sender.clone(),
+            expiration: Expiration::AtHeight(env.block.height),
+            product: Product::new(desired_item, token_id),
+        };
+
+        TRANSACTIONS_MAP.save(deps.storage, info.sender.clone(), &transaction_info)?;
+        match &transaction_info.product {
+            Product::NFT(token) => {
+                executer::create_transaction_nft_to_token(deps.as_ref(), info, env, token.clone())
             }
+            Product::TOKEN(token) => {
+                executer::create_transaction_token_to_nft(deps.as_ref(), info, env, token.clone())
+            }
+            Product::NONE => Err(ContractError::UnauthorizedNft),
         }
-
-        let permission = PERMISSION.load(deps.storage)?;
-    
-        Ok(crate::helpers::send_tokens(config.recipient, vec![coin(800000, permission.token_address)], "approve"))
     }
-
 
     // Contract 에 token 충전
     pub fn add_token_to_contract(
         deps: DepsMut,
-        _env: Env,
+        env: Env,
         info: MessageInfo,
     ) -> Result<Response, ContractError> {
+        // admin 인지 확인
+
         // --amount 를 통해 들어온 자금이 없을 때.
         if info.funds.is_empty() {
             return Err(ContractError::NotReceivedFunds);
@@ -200,16 +212,14 @@ pub mod execute {
             return Err(ContractError::NoFunds);
         }
 
-        let permission = PERMISSION.load(deps.storage)?;
+        let config = CONTRACT_CONFIG.load(deps.storage)?;
 
         // sender 의 주소가 admin 권한이 아닌 경우 혹은 잘못된 토큰을 보내고 있는 경우.
-        if info.sender.into_string() != permission.admin
-        {
+        if info.sender.into_string() != config.admin {
             return Err(ContractError::UnauthorizedAddr);
         }
-        
-        if info.funds[0].denom.clone() != permission.token_address
-        {
+
+        if info.funds[0].denom.clone() != config.token_address {
             return Err(ContractError::UnauthorizedToken);
         }
 
@@ -218,50 +228,48 @@ pub mod execute {
         Ok(Response::new()
             .add_attribute("action", "add token")
             .add_message(BankMsg::Send {
-                to_address: get_contract_address(_env)?,
+                to_address: get_contract_address(env)?,
                 amount: vec![Coin { denom, amount }],
             }))
     }
-
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ContractVaultInfo => to_json_binary(&query::contract_vault_info(_deps,_env)?),
-        QueryMsg::IsTransactionOpen => to_json_binary(&query::get_transaction_response(_deps,_env)?), 
-        QueryMsg::GetNftOwner { contract_addr, token_id } 
-        => to_json_binary(&query::get_nft_owner(_deps,_env, contract_addr, token_id)?),
+        QueryMsg::ContractVaultInfo => to_json_binary(&query::contract_vault_info(deps, env)?),
+        QueryMsg::IsTransactionOpen { buyer } => {
+            to_json_binary(&query::get_transaction_response(deps, env)?)
+        }
+        QueryMsg::GetNftOwner {
+            contract_addr,
+            token_id,
+        } => to_json_binary(&query::get_nft_owner(deps, contract_addr, token_id)?),
     }
 }
 
 pub mod query {
-    use cosmwasm_std::Addr;
-
     use crate::{helpers, msg::GetNftOwnerRespone};
+    use cosmwasm_std::{Addr, Deps, Env, StdResult};
 
-    use super::*;
-
-    pub fn get_nft_owner(_deps: Deps, _env: Env, contract_addr: String, token_id: String) -> StdResult<GetNftOwnerRespone>{
-        match helpers::query_owner_of(_deps, Addr::unchecked(contract_addr), token_id) {
-            Ok(owner_name) => Ok(GetNftOwnerRespone{
-                owner_address: owner_name.owner
+    pub fn get_nft_owner(
+        deps: Deps,
+        contract_addr: String,
+        token_id: String,
+    ) -> StdResult<GetNftOwnerRespone> {
+        match helpers::query_owner_of(deps, Addr::unchecked(contract_addr), token_id) {
+            Ok(owner_name) => Ok(GetNftOwnerRespone {
+                owner_address: owner_name.owner,
             }),
             Err(_) => todo!(),
         }
     }
 
-    pub fn contract_vault_info(_deps: Deps, _env: Env) -> StdResult<GetNftOwnerRespone>{
+    pub fn contract_vault_info(_deps: Deps, _env: Env) -> StdResult<GetNftOwnerRespone> {
         todo!()
     }
-    
-    pub fn get_transaction_response(_deps: Deps, _env: Env) -> StdResult<GetNftOwnerRespone>{
+
+    pub fn get_transaction_response(_deps: Deps, _env: Env) -> StdResult<GetNftOwnerRespone> {
         todo!()
     }
-    
-    /*
-        TODO:
-            Check remaining tokens
-            Check remaining nft
-    */
 }

@@ -32,22 +32,21 @@ mod tests {
     }
 
     mod contract {
+        use cosmwasm_std::Uint128;
+
         use super::*;
 
         #[test]
         fn proper_instantiate() {
             let mut app = mock_app();
             let cw_template_id = app.store_code(contract_template());
-    
+
             let msg = InstantiateMsg {
-                token_address: Addr::unchecked(NATIVE_DENOM),
-                recipient: "test".to_string(),
-                expiration: None,
-                product: "None".to_string(),
-                token_id: Some("1004".to_string()),
-                cw721_contract_address: "".to_string(),
+                token_address: NATIVE_DENOM.to_string(),
+                nft_contract_address: "".to_string(),
+                exchange_rate: Uint128::new(800000),
             };
-    
+
             // contract 를 인스턴스화 시키는 함수
             let cw_template_contract_addr = app
                 .instantiate_contract(
@@ -59,7 +58,7 @@ mod tests {
                     None,
                 )
                 .unwrap();
-    
+
             // contract 에 ExecuteMsg 전송
             app.execute_contract(
                 Addr::unchecked(ADMIN),
@@ -71,8 +70,6 @@ mod tests {
         }
 
         #[test]
-        fn create_transaction_nft_to_token(){
-
-        }
+        fn create_transaction_nft_to_token() {}
     }
 }

@@ -1,11 +1,11 @@
+use cw721::Cw721ExecuteMsg::TransferNft;
+use cw721::Cw721QueryMsg::{NumTokens, OwnerOf};
 use cw721::{NumTokensResponse, OwnerOfResponse};
 use schemars::JsonSchema;
-use cw721::Cw721QueryMsg::{OwnerOf, NumTokens};
-use cw721::Cw721ExecuteMsg::TransferNft;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{
-    to_json_binary, Addr, BankMsg, Coin, CosmosMsg, Deps, Env, Response, StdResult, WasmMsg
+    to_json_binary, Addr, BankMsg, Coin, CosmosMsg, Deps, Env, Response, StdResult, WasmMsg,
 };
 
 pub fn get_contract_address(env: Env) -> StdResult<String> {
@@ -38,29 +38,44 @@ pub fn send_tokens(to_address: Addr, amount: Vec<Coin>, action: &str) -> Respons
         .add_attribute("to", to_address)
 }
 
-pub fn query_owner_of(deps: Deps, cw721_contract_addr: Addr, token_id: String) -> StdResult<OwnerOfResponse> {
+pub fn query_owner_of(
+    deps: Deps,
+    cw721_contract_addr: Addr,
+    token_id: String,
+) -> StdResult<OwnerOfResponse> {
     let owner_of_msg = OwnerOf {
         token_id,
         include_expired: None,
     };
 
-    deps.querier.query(&cosmwasm_std::QueryRequest::Wasm(cosmwasm_std::WasmQuery::Smart {
-        contract_addr: cw721_contract_addr.into_string(),
-        msg: to_json_binary(&owner_of_msg)?,
-    }))
+    deps.querier.query(&cosmwasm_std::QueryRequest::Wasm(
+        cosmwasm_std::WasmQuery::Smart {
+            contract_addr: cw721_contract_addr.into_string(),
+            msg: to_json_binary(&owner_of_msg)?,
+        },
+    ))
 }
 
 pub fn query_num_of_nft(deps: Deps, cw721_contract_addr: Addr) -> StdResult<NumTokensResponse> {
-    let num_of_nft_msg = NumTokens{};
+    let num_of_nft_msg = NumTokens {};
 
-    deps.querier.query(&cosmwasm_std::QueryRequest::Wasm(cosmwasm_std::WasmQuery::Smart {
-        contract_addr: cw721_contract_addr.into_string(),
-        msg: to_json_binary(&num_of_nft_msg)?,
-    }))
+    deps.querier.query(&cosmwasm_std::QueryRequest::Wasm(
+        cosmwasm_std::WasmQuery::Smart {
+            contract_addr: cw721_contract_addr.into_string(),
+            msg: to_json_binary(&num_of_nft_msg)?,
+        },
+    ))
 }
 
-pub fn execute_transfer_nft(cw721_contract_addr: Addr, recipient: String, token_id: String) -> StdResult<Response> {
-    let transfer_nft_msg = TransferNft { recipient: recipient.clone(), token_id: token_id.clone() };
+pub fn execute_transfer_nft(
+    cw721_contract_addr: Addr,
+    recipient: String,
+    token_id: String,
+) -> StdResult<Response> {
+    let transfer_nft_msg = TransferNft {
+        recipient: recipient.clone(),
+        token_id: token_id.clone(),
+    };
 
     let wasm_msg = WasmMsg::Execute {
         contract_addr: cw721_contract_addr.into_string(),
@@ -69,8 +84,8 @@ pub fn execute_transfer_nft(cw721_contract_addr: Addr, recipient: String, token_
     };
 
     Ok(Response::new()
-    .add_message(CosmosMsg::Wasm(wasm_msg))
-    .add_attribute("action", "transfer_nft")
-    .add_attribute("recipient", recipient)
-    .add_attribute("token_id", token_id))
+        .add_message(CosmosMsg::Wasm(wasm_msg))
+        .add_attribute("action", "transfer_nft")
+        .add_attribute("recipient", recipient)
+        .add_attribute("token_id", token_id))
 }
