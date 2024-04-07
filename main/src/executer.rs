@@ -2,7 +2,7 @@ pub mod executer {
     use crate::error::ContractError;
     use crate::helpers;
     use crate::state::{CONTRACT_CONFIG, ContractConfig, TransactionInfo};
-    use cosmwasm_std::Addr;
+    use cosmwasm_std::{coins, Addr};
     #[cfg(not(feature = "library"))]
     use cosmwasm_std::{coin, Deps, Env, MessageInfo, Response};
 
@@ -104,6 +104,25 @@ pub mod executer {
         trans_info: &TransactionInfo
     )-> Result<Response, ContractError>{
         helpers::send_tokens(trans_info.buyer.clone(), vec![coin(config.exchange_rate.into(), config.token_address.clone())], "send_token");
+        Ok(Response::new())
+    }
+
+    pub fn refund_token_to_nft(
+        config: &ContractConfig,
+        trans_info: &TransactionInfo
+    ) -> Result<Response, ContractError>{
+        // 토큰 환불
+        helpers::send_tokens(trans_info.buyer.clone(), coins(config.exchange_rate.u128(), config.token_address.clone()), "refund");
+        Ok(Response::new())
+    }
+    
+    pub fn refund_nft_to_token(
+        config: &ContractConfig,
+        trans_info: &TransactionInfo
+    ) -> Result<Response, ContractError>{
+        // nft 환불
+        helpers::execute_transfer_nft(config.nft_contract_address.clone(), trans_info.buyer.to_string(), trans_info.product.get_nft_token()?)?;
+
         Ok(Response::new())
     }
 }

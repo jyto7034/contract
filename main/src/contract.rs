@@ -88,7 +88,6 @@ pub mod execute {
     pub fn refund(
         deps: DepsMut,
         env: Env,
-        info: MessageInfo,
         buyer: String,
     ) -> Result<Response, ContractError>{
         let config = CONTRACT_CONFIG.load(deps.storage)?;
@@ -97,6 +96,12 @@ pub mod execute {
         if trans_info.expiration.is_expired(&env.block){
             return Err(ContractError::NotExpired)
         }
+
+        match trans_info.product{
+            Product::NFT(_) => executer::refund_token_to_nft(&config, &trans_info)?,
+            Product::TOKEN(_) => executer::refund_nft_to_token(&config, &trans_info)?,
+            Product::NONE => return Err(ContractError::UnknownError),
+        };
         Ok(Response::new())
     }
 
