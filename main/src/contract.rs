@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    to_json_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Response, StdResult
 };
 use cw2::set_contract_version;
 use cw_utils::Expiration;
@@ -242,39 +242,43 @@ pub mod execute {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ContractVaultInfo => to_json_binary(&query::contract_vault_info(deps, env)?),
-        QueryMsg::IsTransactionOpen { buyer } => {
-            to_json_binary(&query::get_transaction_response(deps, env)?)
-        }
-        QueryMsg::GetNftOwner {
-            contract_addr,
-            token_id,
-        } => to_json_binary(&query::get_nft_owner(deps, contract_addr, token_id)?),
+    QueryMsg::GetTransactionInfo { buyer } => to_json_binary(&query::get_transaction_info(deps, env, buyer)),
     }
 }
 
 pub mod query {
-    use crate::{helpers, msg::GetNftOwnerRespone};
-    use cosmwasm_std::{Addr, Deps, Env, StdResult};
+    use crate::msg::TransactionResponse;
 
-    pub fn get_nft_owner(
+    use super::*;
+
+    pub fn get_transaction_info(
         deps: Deps,
-        contract_addr: String,
-        token_id: String,
-    ) -> StdResult<GetNftOwnerRespone> {
-        match helpers::query_owner_of(deps, Addr::unchecked(contract_addr), token_id) {
-            Ok(owner_name) => Ok(GetNftOwnerRespone {
-                owner_address: owner_name.owner,
-            }),
-            Err(_) => todo!(),
+        env: Env,
+        buyer: String,
+    ) -> TransactionResponse{
+        let buyer = deps.api.addr_validate(buyer.as_str()).unwrap();
+        let tran_config = TRANSACTIONS_MAP.load(deps.storage, buyer.clone()).unwrap();
+
+        TransactionResponse{
+             desired_nft: tran_config.product.get_nft_token().unwrap(), 
+             seller: tran_config.seller.to_string(), 
+             buyer: buyer.to_string(), 
+             start_expiration: tran_config.expiration, 
+             end_expiration: Expiration::AtHeight(env.block.height),
         }
     }
-
-    pub fn contract_vault_info(_deps: Deps, _env: Env) -> StdResult<GetNftOwnerRespone> {
-        todo!()
-    }
-
-    pub fn get_transaction_response(_deps: Deps, _env: Env) -> StdResult<GetNftOwnerRespone> {
-        todo!()
-    }
 }
+
+
+// pub fn get_nft_owner(
+//     deps: Deps,
+//     contract_addr: String,
+//     token_id: String,
+// ) -> StdResult<GetNftOwnerRespone> {
+//     match helpers::query_owner_of(deps, Addr::unchecked(contract_addr), token_id) {
+//         Ok(owner_name) => Ok(GetNftOwnerRespone {
+//             owner_address: owner_name.owner,
+//         }),
+//         Err(_) => todo!(),
+//     }
+// }
