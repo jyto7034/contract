@@ -1,11 +1,10 @@
 pub mod executer {
-    use crate::contract::execute::transfer_nft;
     use crate::error::ContractError;
-    use crate::helpers;
-    use crate::state::{ContractConfig, TransactionInfo, CONTRACT_CONFIG};
+    use crate::helpers::{self, TransferNft};
+    use crate::state::{ContractConfig, TransactionInfo, CONTRACT_CONFIG, TRANSACTIONS_MAP};
     #[cfg(not(feature = "library"))]
     use cosmwasm_std::{coin, Deps, Env, MessageInfo, Response};
-    use cosmwasm_std::{coins, Addr};
+    use cosmwasm_std::{coins, Addr, DepsMut};
 
     // nft 를 token 으로 교환.
     pub fn create_transaction_nft_to_token(
@@ -94,21 +93,50 @@ pub mod executer {
         Ok(Response::new().add_attribute("create_transaction_token_to_nft", "Created"))
     }
 
+    pub fn transfer_nft(deps: Deps, buyer: String, token_id: String) -> Result<Response, ContractError> {
+        let config = CONTRACT_CONFIG.load(deps.storage)?;
+        let core_msg = TransferNft {
+            recipient: buyer,
+            token_id,
+         };
+         let processed_msg = core_msg
+         .clone()
+         .into_cosmos_msg(config.nft_contract_address)?;
+         Ok(Response::new()
+         .add_message(processed_msg))
+
+        // helpers::transfer_nft(config.nft_contract_address, buyer, "1".to_string())?;
+        // Ok(Response::new())
+    }
+
     pub fn approve_transaction_token_to_nft(
-        deps: Deps,
+        deps: DepsMut,
         config: &ContractConfig,
         trans_info: &TransactionInfo,
-        token: String,
     ) -> Result<Response, ContractError> {
-        let res = transfer_nft(
-            deps,
-            trans_info.buyer.clone().into_string(),
-            token,
-        )?;
-        Ok(res)
+        let core_msg = TransferNft {
+            recipient: trans_info.buyer.clone().into_string(),
+            token_id: trans_info.product._token.clone(),
+         };
+         let processed_msg = core_msg
+         .clone()
+         .into_cosmos_msg(config.nft_contract_address.clone())?;
+
+        // TRANSACTIONS_MAP 에서 해당 거래를 지워야함.
+        TRANSACTIONS_MAP.remove(deps.storage, trans_info.buyer.clone());
+        
+         Ok(Response::new()
+         .add_message(processed_msg))
+        // let res = transfer_nft(
+        //     deps,
+        //     trans_info.buyer.clone().into_string(),
+        //     token,
+        // )?;
+        // Ok(res)
     }
 
     pub fn approve_transaction_nft_to_token(
+        deps: DepsMut,
         config: &ContractConfig,
         trans_info: &TransactionInfo,
     ) -> Result<Response, ContractError> {
@@ -120,6 +148,8 @@ pub mod executer {
             )],
             "send_token",
         );
+        // TRANSACTIONS_MAP 에서 해당 거래를 지워야함.
+        TRANSACTIONS_MAP.remove(deps.storage, trans_info.buyer.clone());
         Ok(Response::new())
     }
 
@@ -138,14 +168,14 @@ pub mod executer {
 
     pub fn refund_nft_to_token(
         deps: Deps,
-        config: &ContractConfig,
+        _config: &ContractConfig,
         trans_info: &TransactionInfo,
     ) -> Result<Response, ContractError> {
         // nft 환불
         transfer_nft(
             deps,
             trans_info.buyer.to_string(),
-            trans_info.product.get_nft_token()?,
+            trans_info.product._token.clone(),
         )?;
 
         Ok(Response::new())

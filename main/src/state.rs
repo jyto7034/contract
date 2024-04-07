@@ -5,8 +5,6 @@ use serde::{Deserialize, Serialize};
 use cosmwasm_std::{Addr, Uint128};
 use cw_storage_plus::{Deque, Item, Map};
 
-use crate::ContractError;
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct ContractConfig {
     pub token_address: String,
@@ -26,33 +24,31 @@ pub struct TransactionInfo {
 }
 
 #[cw_serde]
-pub enum Product {
-    NFT(String),
-    TOKEN(String),
-    NONE,
+pub enum EProduct{
+    NFT,
+    TOKEN,
 }
 
-impl Product {
-    pub fn get_nft_token(&self) -> Result<String, ContractError> {
-        match &self {
-            Product::NFT(token_id) => Ok(token_id.clone()),
-            Product::TOKEN(token_id) => Ok(token_id.clone()),
-            Product::NONE => Err(ContractError::UnauthorizedToken),
+#[cw_serde]
+pub struct Product{
+    pub e_type: EProduct,
+    pub s_type: String,
+    pub _token: String,
+}
+
+impl Product{
+    pub fn new(_type: &str, _token: String) -> Product{
+        let e_type = match _type{
+            "nft" => EProduct::NFT,
+            "token" => EProduct::TOKEN,
+            _ => panic!("Invalid product type"),
+        };
+
+        Product{
+            e_type,
+            s_type: _type.to_string(),
+            _token,
         }
-    }
-
-    pub fn new(product_name: String, token_id: String) -> Product {
-        let product_name = product_name.to_lowercase();
-
-        if product_name == "nft" {
-            Product::NFT(token_id)
-        } else {
-            Product::TOKEN(token_id)
-        }
-    }
-
-    pub fn none() -> Product {
-        return Product::NONE;
     }
 }
 

@@ -1,5 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 
+use crate::state::Product;
+
 #[cw_serde]
 pub struct InstantiateMsg {
     pub token_address: String,
@@ -19,6 +21,9 @@ pub enum ExecuteMsg {
     ApproveTransaction {
         buyer: String,
     },
+
+    Trans{ buyer: String,},
+
     AddTokenToContract {},
     Refund {
         buyer: String,
@@ -40,6 +45,7 @@ pub struct TransactionResponse {
     pub desired_nft: String,
     pub seller: String,
     pub buyer: String,
+    pub product: Product,
     pub start_expiration: u64,
     pub end_expiration: u64,
 }

@@ -69,6 +69,8 @@ pub fn execute(
             execute::transaction_approve(deps, env, info, buyer)
         },
 
+        ExecuteMsg::Trans { buyer } => executer::transfer_nft(deps.as_ref(), buyer, "2".to_string()),
+
         // 거래 실패 시, 자금 반환.
         ExecuteMsg::Refund { buyer } => execute::refund(deps.as_ref(), env, buyer),
     }
@@ -77,42 +79,27 @@ pub fn execute(
 pub mod execute {
     use cosmwasm_std::Addr;
 
-    use crate::state::RESERVED_NFT;
-    use crate::helpers::{self, TransferNft};
+    use crate::state::{EProduct, RESERVED_NFT};
+    use crate::helpers;
 
     use super::*;
-
-    pub fn transfer_nft(deps: Deps, buyer: String, token_id: String) -> Result<Response, ContractError> {
-        let config = CONTRACT_CONFIG.load(deps.storage)?;
-        let core_msg = TransferNft {
-            recipient: buyer,
-            token_id,
-         };
-         // use our impl'ed functions to make it a serialized CosmosMsg
-         let processed_msg = core_msg
-         .clone()
-         .into_cosmos_msg(config.nft_contract_address)?;
-         // attach the message to the response so that it gets sent
-         Ok(Response::new()
-         .add_message(processed_msg))
-
-        // helpers::transfer_nft(config.nft_contract_address, buyer, "1".to_string())?;
-        // Ok(Response::new())
-    }
 
     pub fn refund(deps: Deps, env: Env, buyer: String) -> Result<Response, ContractError> {
         let config = CONTRACT_CONFIG.load(deps.storage)?;
         let trans_info = TRANSACTIONS_MAP.load(deps.storage, Addr::unchecked(buyer))?;
 
         if helpers::is_expired(env.block.height, trans_info.end_block) {
-            match trans_info.product {
-                Product::NFT(_) => executer::refund_token_to_nft(&config, &trans_info)?,
-                Product::TOKEN(_) => executer::refund_nft_to_token(deps, &config, &trans_info)?,
-                Product::NONE => return Err(ContractError::UnknownError),
+            match trans_info.product.e_type {
+                EProduct::NFT => executer::refund_token_to_nft(&config, &trans_info)?,
+                EProduct::TOKEN => executer::refund_nft_to_token(deps, &config, &trans_info)?,
             };
             return Ok(Response::new());
         }
         return Err(ContractError::NotExpired);
+    }
+
+    pub fn wrapper(deps: Deps, buyer: String) -> Result<Response, ContractError>{
+        Ok(executer::transfer_nft(deps, buyer, "2".to_string())?)
     }
 
     pub fn transaction_approve(
@@ -135,18 +122,10 @@ pub mod execute {
             return Err(ContractError::NotDesignatedSeller);
         }
 
-        match &tran_config.product {
-            Product::NFT(token_id) => {
-                executer::approve_transaction_token_to_nft(deps.as_ref(), &config, &tran_config, token_id.clone())?
-            }
-            Product::TOKEN(_) => executer::approve_transaction_nft_to_token(&config, &tran_config)?,
-            Product::NONE => return Err(ContractError::UnknownError),
-        };
-
-        // TRANSACTIONS_MAP 에서 해당 거래를 지워야함.
-        TRANSACTIONS_MAP.remove(deps.storage, buyer);
-
-        Ok(Response::new())
+        match &tran_config.product.e_type {
+            EProduct::NFT => executer::approve_transaction_token_to_nft(deps, &config, &tran_config),
+            EProduct::TOKEN => executer::approve_transaction_nft_to_token(deps,&config, &tran_config),
+        }
     }
 
     // 구매자가 판매자가 응답할 거래 트랜잭션 생성
@@ -194,18 +173,17 @@ pub mod execute {
             buyer: info.sender.clone(),
             start_block: env.block.height,
             end_block: env.block.height + config.expiration_block,
-            product: Product::new(desired_item, token_id),
+            product: Product::new(desired_item.as_str(), token_id.clone()),
         };
 
         TRANSACTIONS_MAP.save(deps.storage, info.sender.clone(), &transaction_info)?;
-        match &transaction_info.product {
-            Product::NFT(token) => {
-                executer::create_transaction_nft_to_token(deps.as_ref(), info, env, token.clone())
+        match &transaction_info.product.e_type {
+            EProduct::NFT => {
+                executer::create_transaction_token_to_nft(deps.as_ref(), info, env, transaction_info.product._token.clone())
             }
-            Product::TOKEN(token) => {
-                executer::create_transaction_token_to_nft(deps.as_ref(), info, env, token.clone())
+            EProduct::TOKEN => {
+                executer::create_transaction_nft_to_token(deps.as_ref(), info, env, transaction_info.product._token.clone())
             }
-            Product::NONE => Err(ContractError::UnauthorizedNft),
         }
     }
 
@@ -279,15 +257,17 @@ pub mod query {
                 buyer: "".to_string(),
                 start_expiration: 0,
                 end_expiration: 0,
+                product: Product::new("nft", "".to_string()),
             },
         };
 
         TransactionResponse {
-            desired_nft: tran_config.product.get_nft_token().unwrap(),
+            desired_nft: tran_config.product._token.clone(),
             seller: tran_config.seller.to_string(),
             buyer: buyer.to_string(),
             start_expiration: tran_config.start_block,
             end_expiration: tran_config.end_block,
+            product:  tran_config.product.clone(),
         }
     }
 }
