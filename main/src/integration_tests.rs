@@ -32,8 +32,6 @@ mod tests {
     }
 
     mod contract {
-        use cosmwasm_std::Uint128;
-
         use super::*;
 
         #[test]
@@ -44,7 +42,8 @@ mod tests {
             let msg = InstantiateMsg {
                 token_address: NATIVE_DENOM.to_string(),
                 nft_contract_address: "".to_string(),
-                exchange_rate: Uint128::new(800000),
+                exchange_rate: 800000,
+                expiration_block: 100,
             };
 
             // contract 를 인스턴스화 시키는 함수

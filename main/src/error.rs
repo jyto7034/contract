@@ -9,6 +9,15 @@ pub enum ContractError {
     #[error("Bad funds")]
     BadFunds,
 
+    #[error("Too high block")]
+    HighBlock,
+
+    #[error("Bad Transaction")]
+    BadTransaction,
+
+    #[error("Reserved NFT")]
+    ReservedNFT,
+
     #[error("The transaction is already in progress..")]
     TransactionAlreadyProgress,
 

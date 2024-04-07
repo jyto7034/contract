@@ -1,10 +1,11 @@
 pub mod executer {
+    use crate::contract::execute::transfer_nft;
     use crate::error::ContractError;
     use crate::helpers;
-    use crate::state::{CONTRACT_CONFIG, ContractConfig, TransactionInfo};
-    use cosmwasm_std::{coins, Addr};
+    use crate::state::{ContractConfig, TransactionInfo, CONTRACT_CONFIG};
     #[cfg(not(feature = "library"))]
     use cosmwasm_std::{coin, Deps, Env, MessageInfo, Response};
+    use cosmwasm_std::{coins, Addr};
 
     // nft 를 token 으로 교환.
     pub fn create_transaction_nft_to_token(
@@ -22,7 +23,8 @@ pub mod executer {
             config.nft_contract_address.clone(),
             income_nft.clone(),
         )?;
-        if res.owner == helpers::get_contract_address(env.clone())? {
+        // 해당 nft 가 owner 것인지 확인
+        if res.owner == _info.sender {
             return Err(ContractError::DoesNotOwnNFT);
         }
 
@@ -43,8 +45,8 @@ pub mod executer {
             } else {
                 // nft 를 가지고 있는 contract 의 approvals 에 escrow contract 가 포함되어 있어야함.
                 // nft 를 contract 로 전송함.
-                helpers::execute_transfer_nft(
-                    config.nft_contract_address.clone(),
+                transfer_nft(
+                    deps,
                     contract_address.to_string(),
                     income_nft,
                 )?;
@@ -69,12 +71,14 @@ pub mod executer {
 
         // sender 가 잘못된 토큰을 보낸 경우.
         if info.funds[0].denom.clone() != config.token_address {
+            helpers::send_tokens(info.sender.clone(), info.funds, "refund");
             return Err(ContractError::UnauthorizedToken);
         }
-        
+
         // sender 가 부족한 토큰을 보낸 경우.
         if info.funds[0].amount != config.exchange_rate {
-            return Err(ContractError::Balanceinsufficient);
+            helpers::send_tokens(info.sender.clone(), info.funds, "refund");
+            return Err(ContractError::BadFunds);
         }
 
         // 구매 하고자 하는 nft 가 유효한가?
@@ -91,37 +95,58 @@ pub mod executer {
     }
 
     pub fn approve_transaction_token_to_nft(
+        deps: Deps,
         config: &ContractConfig,
         trans_info: &TransactionInfo,
         token: String,
-    ) -> Result<Response, ContractError>{
-        helpers::execute_transfer_nft(config.nft_contract_address.clone(), trans_info.buyer.clone().into_string(), token)?;
-        Ok(Response::new())
+    ) -> Result<Response, ContractError> {
+        let res = transfer_nft(
+            deps,
+            trans_info.buyer.clone().into_string(),
+            token,
+        )?;
+        Ok(res)
     }
-    
+
     pub fn approve_transaction_nft_to_token(
         config: &ContractConfig,
-        trans_info: &TransactionInfo
-    )-> Result<Response, ContractError>{
-        helpers::send_tokens(trans_info.buyer.clone(), vec![coin(config.exchange_rate.into(), config.token_address.clone())], "send_token");
+        trans_info: &TransactionInfo,
+    ) -> Result<Response, ContractError> {
+        helpers::send_tokens(
+            trans_info.buyer.clone(),
+            vec![coin(
+                config.exchange_rate.into(),
+                config.token_address.clone(),
+            )],
+            "send_token",
+        );
         Ok(Response::new())
     }
 
     pub fn refund_token_to_nft(
         config: &ContractConfig,
-        trans_info: &TransactionInfo
-    ) -> Result<Response, ContractError>{
+        trans_info: &TransactionInfo,
+    ) -> Result<Response, ContractError> {
         // 토큰 환불
-        helpers::send_tokens(trans_info.buyer.clone(), coins(config.exchange_rate.u128(), config.token_address.clone()), "refund");
+        helpers::send_tokens(
+            trans_info.buyer.clone(),
+            coins(config.exchange_rate.u128(), config.token_address.clone()),
+            "refund",
+        );
         Ok(Response::new())
     }
-    
+
     pub fn refund_nft_to_token(
+        deps: Deps,
         config: &ContractConfig,
-        trans_info: &TransactionInfo
-    ) -> Result<Response, ContractError>{
+        trans_info: &TransactionInfo,
+    ) -> Result<Response, ContractError> {
         // nft 환불
-        helpers::execute_transfer_nft(config.nft_contract_address.clone(), trans_info.buyer.to_string(), trans_info.product.get_nft_token()?)?;
+        transfer_nft(
+            deps,
+            trans_info.buyer.to_string(),
+            trans_info.product.get_nft_token()?,
+        )?;
 
         Ok(Response::new())
     }

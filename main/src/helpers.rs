@@ -1,11 +1,11 @@
-use cw721::Cw721ExecuteMsg::TransferNft;
 use cw721::Cw721QueryMsg::{NumTokens, OwnerOf};
 use cw721::{NumTokensResponse, OwnerOfResponse};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{
-    to_json_binary, Addr, BankMsg, Coin, CosmosMsg, Deps, Env, Response, StdResult, WasmMsg,
+    to_binary, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, Env, Response,
+    StdResult, WasmMsg,
 };
 
 pub fn get_contract_address(env: Env) -> StdResult<String> {
@@ -38,6 +38,10 @@ pub fn send_tokens(to_address: Addr, amount: Vec<Coin>, action: &str) -> Respons
         .add_attribute("to", to_address)
 }
 
+pub fn is_expired(start: u64, end: u64) -> bool {
+    start >= end
+}
+
 pub fn query_owner_of(
     deps: Deps,
     cw721_contract_addr: Addr,
@@ -67,25 +71,35 @@ pub fn query_num_of_nft(deps: Deps, cw721_contract_addr: Addr) -> StdResult<NumT
     ))
 }
 
-pub fn execute_transfer_nft(
-    cw721_contract_addr: Addr,
-    recipient: String,
-    token_id: String,
-) -> StdResult<Response> {
-    let transfer_nft_msg = TransferNft {
-        recipient: recipient.clone(),
-        token_id: token_id.clone(),
-    };
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum CollectablesExecuteMsg {
+    TransferNft(TransferNft),
+}
 
-    let wasm_msg = WasmMsg::Execute {
-        contract_addr: cw721_contract_addr.into_string(),
-        msg: to_json_binary(&transfer_nft_msg)?,
-        funds: vec![],
-    };
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct TransferNft {
+    pub recipient: String,
+    pub token_id: String
+}
 
-    Ok(Response::new()
-        .add_message(CosmosMsg::Wasm(wasm_msg))
-        .add_attribute("action", "transfer_nft")
-        .add_attribute("recipient", recipient)
-        .add_attribute("token_id", token_id))
+impl TransferNft {
+    /// serializes the message
+    pub fn into_binary(self) -> StdResult<Binary> {
+        let msg = CollectablesExecuteMsg::TransferNft(self);
+        to_binary(&msg)
+    }
+    /// creates a cosmos_msg sending this struct to the named contract
+    pub fn into_cosmos_msg<T: Into<String>, C>(self, contract_addr: T) -> StdResult<CosmosMsg<C>>
+    where
+        C: Clone + std::fmt::Debug + PartialEq + JsonSchema,
+    {
+        let msg = self.into_binary()?;
+        let execute = WasmMsg::Execute {
+            contract_addr: contract_addr.into(),
+            msg,
+            funds: vec![],
+        };
+        Ok(execute.into())
+    }
 }
