@@ -4,9 +4,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{
-    to_binary, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, Env, Response,
+    to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, Env, Response,
     StdResult, WasmMsg,
 };
+
+use crate::msg::ExecuteMsg;
 
 pub fn get_contract_address(env: Env) -> StdResult<String> {
     Ok(env.contract.address.into_string())
@@ -20,6 +22,16 @@ pub struct CwTemplateContract(pub Addr);
 impl CwTemplateContract {
     pub fn addr(&self) -> Addr {
         self.0.clone()
+    }
+
+    pub fn call<T: Into<ExecuteMsg>>(&self, msg: T, funds: Coin) -> StdResult<CosmosMsg> {
+        let msg = to_json_binary(&msg.into())?;
+        Ok(WasmMsg::Execute {
+            contract_addr: self.addr().into(),
+            msg,
+            funds: vec![funds],
+        }
+        .into())
     }
 }
 
@@ -80,21 +92,21 @@ pub enum CollectablesExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TransferNft {
     pub recipient: String,
-    pub token_id: String
+    pub token_id: String,
 }
 
 impl TransferNft {
     /// serializes the message
-    pub fn into_binary(self) -> StdResult<Binary> {
+    pub fn into_json_binary(self) -> StdResult<Binary> {
         let msg = CollectablesExecuteMsg::TransferNft(self);
-        to_binary(&msg)
+        to_json_binary(&msg)
     }
     /// creates a cosmos_msg sending this struct to the named contract
     pub fn into_cosmos_msg<T: Into<String>, C>(self, contract_addr: T) -> StdResult<CosmosMsg<C>>
     where
         C: Clone + std::fmt::Debug + PartialEq + JsonSchema,
     {
-        let msg = self.into_binary()?;
+        let msg = self.into_json_binary()?;
         let execute = WasmMsg::Execute {
             contract_addr: contract_addr.into(),
             msg,

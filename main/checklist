@@ -1,0 +1,26 @@
+    공통사항 ( CreateTransaction )
+        - seller 불일치                        -> reject
+        - seller 가 buyer 인 경우               -> rejcet
+        - desired_item 불일치 (nft, token 외 )  -> reject
+
+    CreateTransaction token -> nft
+        - nft 소유하지 않은 경우                -> 일부로 패스함. approve 시 실소유자가 아닌 경우 reject
+        - funds 불일치                         -> reject
+    
+    
+    CreateTransaction nft -> token
+        - nft 소유하지 않은 경우                -> reject
+        - funds 불일치                         -> todo
+
+
+
+    ApproveTransaction
+        - buyer 가 정한 seller 이지만 token 이 없는 경우.       -> rejcet
+        - buyer 가 정한 seller 이지만 nft 가 없는 경우.         -> rejcet
+        - buyer 가 정한 seller 가 아닌 경우                     -> reject
+
+
+    RefundTransaction
+        - buyer 가 정한 seller 가 아닌 경우의 만료 전 refund     -> reject
+        - buyer 가 정한 seller 가 만료 전 refund                -> pass
+        - 만료된 거래에 대해서 누구나 refund                     -> pass

@@ -24,30 +24,30 @@ pub struct TransactionInfo {
 }
 
 #[cw_serde]
-pub enum EProduct{
+pub enum EProduct {
     NFT,
     TOKEN,
 }
 
 #[cw_serde]
-pub struct Product{
-    pub e_type: EProduct,
-    pub s_type: String,
-    pub _token: String,
+pub struct Product {
+    pub to_enum: EProduct,
+    pub to_string: String,
+    pub token_id: String,
 }
 
-impl Product{
-    pub fn new(_type: &str, _token: String) -> Product{
-        let e_type = match _type{
+impl Product {
+    pub fn new(_type: &str, token_id: String) -> Product {
+        let enum_type = match _type {
             "nft" => EProduct::NFT,
             "token" => EProduct::TOKEN,
             _ => panic!("Invalid product type"),
         };
 
-        Product{
-            e_type,
-            s_type: _type.to_string(),
-            _token,
+        Product {
+            to_enum: enum_type,
+            to_string: _type.to_string(),
+            token_id,
         }
     }
 }

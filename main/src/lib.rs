@@ -1,3 +1,7 @@
+#[warn(unused_imports)]
+#[macro_use]
+extern crate lazy_static;
+
 pub mod contract;
 mod error;
 pub mod executer;

@@ -326,6 +326,40 @@ mod tests {
             })
         );
 
+
+        /*
+                let config = generate_contract_config();
+        let trans_info = generate_transaction_info();
+        let (mut app, contract) = set_contract(config.clone());
+        let mut deps = mock_dependencies();
+        
+        let init_amount = coins(100, config.token_address.clone());
+        let mut env = mock_env();
+        env.block.height = 876;
+        let info = mock_info("creator", &init_amount);
+        let contract_addr = env.clone().contract.address;
+        let msg = generate_instantiate_msg(config.clone());
+        let init_res = instantiate(deps.as_mut(), env, info, msg).unwrap();
+
+        deps.querier.update_balance(&contract_addr, init_amount);
+
+        let msg = ExecuteMsg::CreateTransaction { 
+            seller: trans_info.seller.to_string(),
+            desired_item: trans_info.product.s_type,
+            nft_token_id: trans_info.product._token,
+        };
+        let mut env = mock_env();
+        env.block.height = 900;
+        let info = mock_info(trans_info.buyer.as_str(), &[Coin::new(1, config.token_address)]);
+        let execute_res = execute(deps.as_mut(), env, info, msg.clone());
+        match execute_res.unwrap_err() {
+            ContractError::Unauthorized { } => {}
+            e => panic!("unexpected error: {:?}", e),
+        }
+        
+        
+        */
+
         // anyone can release after expiration
         let msg = ExecuteMsg::Refund {};
         let mut env = mock_env();

@@ -18,13 +18,13 @@ pub enum ExecuteMsg {
         nft_token_id: String,
     },
 
+    SendToken { amount: u64, address: String },
+    
+    SendNft { token_id: String, address: String },
+
     ApproveTransaction {
         buyer: String,
     },
-
-    Trans{ buyer: String,},
-
-    AddTokenToContract {},
     Refund {
         buyer: String,
     },

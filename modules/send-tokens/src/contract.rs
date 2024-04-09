@@ -35,7 +35,6 @@ pub mod execute {
     use super::*;
 
     pub fn send_tokens(_deps: DepsMut, amount: Uint128, denom: String, to: Addr) -> Result<Response, ContractError> {
-
         Ok(Response::new().add_attribute("action", "increment")
         .add_message(BankMsg::Send { to_address: to.into_string(), amount: vec![Coin{denom, amount}] }))
     }

@@ -1,13 +1,16 @@
 use cosmwasm_std::StdError;
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
     #[error("Bad funds")]
     BadFunds,
+
+    #[error("Bad funds")]
+    NoTransaction,
 
     #[error("Too high block")]
     HighBlock,
@@ -69,7 +72,7 @@ pub enum ContractError {
     #[error("Product Token Parsing Failed")]
     ProductTokenPasingErr,
 
-    #[error("Does not own the corresponding nft. ")]
+    #[error("You don't own it.")]
     DoesNotOwnNFT,
 
     #[error("Not Designated Seller")]
