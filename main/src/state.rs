@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Addr, Uint128};
-use cw_storage_plus::{Deque, Item, Map};
+use cw_storage_plus::{Item, Map};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct ContractConfig {
@@ -52,11 +52,7 @@ impl Product {
     }
 }
 
-/*
-= Item::new("check_transaction");
-= Item::new("info");
-= Item::new("config");
-*/
 pub const CONTRACT_CONFIG: Item<ContractConfig> = Item::new("config");
 pub const TRANSACTIONS_MAP: Map<Addr, TransactionInfo> = Map::new("transactions");
-pub const RESERVED_NFT: Deque<String> = Deque::new("reserved");
+pub const RESERVED_NFT: Map<String, String> = Map::new("reserved_nft");
+pub const LOCK: Item<bool> = Item::new("locker");

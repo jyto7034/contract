@@ -6,6 +6,12 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
+    #[error("SoldOut")]
+    AlreadyInTransaction,
+
+    #[error("Contract is lock")]
+    Lock,
+
     #[error("Bad funds")]
     BadFunds,
 

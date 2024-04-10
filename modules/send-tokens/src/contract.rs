@@ -38,8 +38,6 @@ pub mod execute {
         Ok(Response::new().add_attribute("action", "increment")
         .add_message(BankMsg::Send { to_address: to.into_string(), amount: vec![Coin{denom, amount}] }))
     }
-
-   
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

@@ -4,11 +4,13 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{
-    to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, Env, Response,
+    to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, Response,
     StdResult, WasmMsg,
 };
 
 use crate::msg::ExecuteMsg;
+use crate::state::LOCK;
+use crate::ContractError;
 
 pub fn get_contract_address(env: Env) -> StdResult<String> {
     Ok(env.contract.address.into_string())
@@ -113,5 +115,14 @@ impl TransferNft {
             funds: vec![],
         };
         Ok(execute.into())
+    }
+}
+
+pub fn is_lock(deps: &DepsMut) -> Result<(), ContractError> {
+    let state = LOCK.load(deps.storage)?;
+    if state {
+        Err(ContractError::Lock)
+    } else {
+        Ok(())
     }
 }

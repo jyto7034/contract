@@ -15,8 +15,8 @@
 
 
     ApproveTransaction
-        - buyer 가 정한 seller 이지만 token 이 없는 경우.       -> rejcet
-        - buyer 가 정한 seller 이지만 nft 가 없는 경우.         -> rejcet
+        - buyer 가 정한 seller 이지만 token 이 없는 경우.       -> todo
+        - buyer 가 정한 seller 이지만 nft 가 없는 경우.         -> todo
         - buyer 가 정한 seller 가 아닌 경우                     -> reject
 
 

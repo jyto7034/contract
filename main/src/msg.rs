@@ -18,9 +18,17 @@ pub enum ExecuteMsg {
         nft_token_id: String,
     },
 
-    SendToken { amount: u64, address: String },
-    
-    SendNft { token_id: String, address: String },
+    SendToken {
+        amount: u64,
+        address: String,
+    },
+
+    SendNft {
+        token_id: String,
+        address: String,
+    },
+
+    Lock {},
 
     ApproveTransaction {
         buyer: String,
@@ -37,7 +45,10 @@ pub enum QueryMsg {
 
     // 특정 주소의 거래 상태
     #[returns(TransactionResponse)]
-    GetTransactionInfo { buyer: String },
+    GetTransactionInfo {
+        buyer: Option<String>,
+        token: Option<String>,
+    },
 }
 
 #[cw_serde]
