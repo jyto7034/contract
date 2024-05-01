@@ -259,7 +259,6 @@ pub mod execute {
 
             // sender 가 잘못된 토큰을 보낸 경우.
             if info.funds[0].denom.clone() != config.token_address {
-                helpers::send_tokens(info.sender.clone(), info.funds, "refund");
                 return Err(ContractError::UnauthorizedToken);
             }
         }
@@ -279,7 +278,6 @@ pub mod execute {
                 transaction_info.product.token_id.clone(),
             ),
         }
-        // Ok(Response::new())
     }
 }
 
