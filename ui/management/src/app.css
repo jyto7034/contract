@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+	.button-effect {
+		@apply text-2xl font-bold px-10 tracking-wide transition duration-200 rounded-lg;
+	}
+	.button-effect:hover {
+		background-color: #1a202c;
+	}
+}

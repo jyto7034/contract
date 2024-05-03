@@ -1,0 +1,13 @@
+{
+    "rpc":"https://sei-testnet-rpc.polkachu.com",
+    "chain":"atlantic-2",
+    "nft_owner":"sei1acc5cju3jvqj40njate7kgj34rfr0jqz332h3wsqk5erjw2e2y6s9rqn4v",
+    "nft_contract_address":"sei1mwwguwrljgrmtz8f823cd3qf0sx0mgecgzdxzg3r2are6w8fqzlqrwaakd",
+    "swap_contract_address":"sei1acc5cju3jvqj40njate7kgj34rfr0jqz332h3wsqk5erjw2e2y6s9rqn4v",
+    "swap_token_contract":"sei1s3npa4zqdapvmjqg2jdtlt0pk0d8c7yfq73g6p2euvmjdjfljkwqtm9fat",
+    "token_denom_address": "factory/sei1s3npa4zqdapvmjqg2jdtlt0pk0d8c7yfq73g6p2euvmjdjfljkwqtm9fat/chickegg",
+    "owner":"sei18dl724gejf2l6eza9x5gg00s4nx4hkqs5dkva4",
+    "exchange_rate":"200",
+    "denom":"factory/sei18dl724gejf2l6eza9x5gg00s4nx4hkqs5dkva4/test",
+    "one_sei": 100
+}

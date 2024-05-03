@@ -3,12 +3,11 @@ use cosmwasm_std::Coin;
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub exchange_rate: String,
 }
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    ChangeConfig { new_exchange_rate: String },
+    // ChangeConfig { new_exchange_rate: String },
 
     CreateDenom { denom_name: String },
     MintToken { amount: String },
@@ -16,10 +15,10 @@ pub enum ExecuteMsg {
     SendToken { recipient: String, denom: String, amount: String },
 
     // swap token to sei
-    ToSei { },
+    // ToSei { },
 
     // swap sei to token
-    ToToken { },
+    // ToToken { },
 
     Lock { },
 }

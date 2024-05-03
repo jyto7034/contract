@@ -18,14 +18,12 @@ pub fn instantiate(
     deps: DepsMut<SeiQueryWrapper>,
     _env: Env,
     info: MessageInfo,
-    msg: InstantiateMsg,
+    _msg: InstantiateMsg,
 ) -> Result<Response<SeiMsg>, ContractError> {
     let config = ContractConfig {
         admin: deps.api.addr_validate(info.sender.as_str())?,
-        exchange_rate: msg.exchange_rate.parse::<u64>().unwrap(),
         denom: None,
         denom_name: None,
-        one_sei: 1000000,
     };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
@@ -42,9 +40,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response<SeiMsg>, ContractError> {
     match msg {
-        ExecuteMsg::ChangeConfig { new_exchange_rate } => {
-            execute::change_config(deps, env, info, new_exchange_rate)
-        }
+        // ExecuteMsg::ChangeConfig { new_exchange_rate } => {
+        //     execute::change_config(deps, env, info, new_exchange_rate)
+        // }
         ExecuteMsg::CreateDenom { denom_name } => {
             execute::create_denom(deps, env, info, denom_name)
         }
@@ -53,8 +51,8 @@ pub fn execute(
         }
         ExecuteMsg::BurnToken { amount } => execute::burn_token(deps, env, info, amount),
         ExecuteMsg::SendToken {recipient,amount, denom } => execute::send_token(deps, env, info, recipient, amount, denom),
-        ExecuteMsg::ToSei {} => execute::to_sei(deps, env, info),
-        ExecuteMsg::ToToken {} => execute::to_token(deps, env, info),
+        // ExecuteMsg::ToSei {} => execute::to_sei(deps, env, info),
+        // ExecuteMsg::ToToken {} => execute::to_token(deps, env, info),
         ExecuteMsg::Lock {} => execute::lock(deps, info),
     }
 }
@@ -76,7 +74,7 @@ pub mod execute {
 
         let mut config = CONTRACT_CONFIG.load(deps.storage)?;
         config.denom_name = Some(denom.clone());
-        config.denom = Some("factory/".to_string() + env.contract.address.to_string().as_ref() + "/" + denom.as_str());
+        config.denom = Some("factory/".to_string() + info.sender.as_str() + "/" + denom.as_str());
 
         let test_create_denom = sei_cosmwasm::SeiMsg::CreateDenom {
             subdenom: config.denom_name.clone().unwrap(),
@@ -95,24 +93,6 @@ pub mod execute {
         Ok(Response::new())
     }
     
-    pub fn change_config(
-        deps: DepsMut,
-        env: Env,
-        info: MessageInfo,
-        new_exchange_rate: String,
-    ) -> Result<Response<SeiMsg>, ContractError> {
-        // admin 권한 확인
-        helpers::is_admin(deps.as_ref(), env, info.sender.to_string())?;
-
-        let mut config = CONTRACT_CONFIG.load(deps.storage)?;
-
-        // exchange_rate 변경
-        config.exchange_rate = new_exchange_rate.parse::<u64>().unwrap();
-
-        CONTRACT_CONFIG.save(deps.storage, &config)?;
-        Ok(Response::new())
-    }
-
     pub fn mint_token(
         deps: DepsMut,
         env: Env,
@@ -161,64 +141,6 @@ pub mod execute {
     ) ->  Result<Response<SeiMsg>, ContractError>{
         helpers::is_admin(deps.as_ref(), env, info.sender.to_string())?;
         Ok(helpers::send_tokens(deps.api.addr_validate(recipient.as_str())?, coins(Uint128::from(amount.parse::<u64>().unwrap()).u128(), denom), "send"))
-    }
-
-    pub fn to_sei(
-        deps: DepsMut,
-        _env: Env,
-        info: MessageInfo,
-    ) ->  Result<Response<SeiMsg>, ContractError>{
-        helpers::is_lock(&deps)?;
-        let config = CONTRACT_CONFIG.load(deps.storage)?;
-        
-        // --amount 를 통해 들어온 자금이 없을 때.
-        if info.funds.is_empty() {
-            return Err(ContractError::NotReceivedFunds);
-        }
-
-        // sender 가 잘못된 토큰을 보낸 경우.
-        if info.funds[0].denom.clone() != config.denom.unwrap() {
-            return Err(ContractError::UnauthorizedToken);
-        }
-
-        // 들어온 token 이 교환비율로 깔끔하게 나누어 떨어지지 않을 때.
-        if (info.funds[0].amount.u128() % config.exchange_rate as u128) != 0{
-            return Err(ContractError::BadFunds)
-        }
-
-        // 들어온 token 만큼 sei 를 사용자에게 전송
-        let amount = info.funds[0].amount.u128() / config.exchange_rate as u128 * config.one_sei as u128;
-
-        Ok(helpers::send_tokens(info.sender.clone(), coins(Uint128::from(amount).u128(), "usei"), "send"))
-    }
-
-    pub fn to_token(
-        deps: DepsMut,
-        _env: Env,
-        info: MessageInfo,
-    ) ->  Result<Response<SeiMsg>, ContractError>{
-        helpers::is_lock(&deps)?;
-        let config = CONTRACT_CONFIG.load(deps.storage)?;
-        
-        // --amount 를 통해 들어온 자금이 없을 때.
-        if info.funds.is_empty() {
-            return Err(ContractError::NotReceivedFunds);
-        }
-
-        // sender 가 잘못된 토큰을 보낸 경우.
-        if info.funds[0].denom.clone() != "usei" {
-            return Err(ContractError::UnauthorizedToken);
-        }
-
-        // 들어온 token 이 교환비율로 깔끔하게 나누어 떨어지지 않을 때.
-        if (info.funds[0].amount.u128() % config.one_sei as u128) != 0{
-            return Err(ContractError::BadFunds)
-        }
-
-        // 들어온 sei 만큼 token 를 사용자에게 전송
-        let amount = info.funds[0].amount.u128() / config.one_sei as u128 * config.exchange_rate as u128;
-
-        Ok(helpers::send_tokens(info.sender.clone(), coins(Uint128::from(amount).u128(), config.denom.unwrap()), "send"))
     }
 }
 
