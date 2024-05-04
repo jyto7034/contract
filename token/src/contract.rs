@@ -40,9 +40,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response<SeiMsg>, ContractError> {
     match msg {
-        // ExecuteMsg::ChangeConfig { new_exchange_rate } => {
-        //     execute::change_config(deps, env, info, new_exchange_rate)
-        // }
+        ExecuteMsg::ChangeAdmin { new_admin } => {
+            execute::change_admin(deps, env, info, new_admin)
+        }
         ExecuteMsg::CreateDenom { denom_name } => {
             execute::create_denom(deps, env, info, denom_name)
         }
@@ -50,9 +50,7 @@ pub fn execute(
             execute::mint_token(deps, env, info, amount)
         }
         ExecuteMsg::BurnToken { amount } => execute::burn_token(deps, env, info, amount),
-        ExecuteMsg::SendToken {recipient,amount, denom } => execute::send_token(deps, env, info, recipient, amount, denom),
-        // ExecuteMsg::ToSei {} => execute::to_sei(deps, env, info),
-        // ExecuteMsg::ToToken {} => execute::to_token(deps, env, info),
+        ExecuteMsg::SendToken {recipient,amount } => execute::send_token(deps, env, info, recipient, amount),
         ExecuteMsg::Lock {} => execute::lock(deps, info),
     }
 }
@@ -64,6 +62,22 @@ pub mod execute {
 
     use super::*;
 
+    pub fn change_admin(
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+        new_admin: String,
+    ) -> Result<Response<SeiMsg>, ContractError> {
+        helpers::is_admin(deps.as_ref(), env.clone(), info.sender.clone().to_string())?;
+
+        let mut config = CONTRACT_CONFIG.load(deps.storage)?;
+
+        config.admin = deps.api.addr_validate(new_admin.as_str())?;
+
+        CONTRACT_CONFIG.save(deps.storage, &config)?;
+        Ok(Response::new())
+    }
+
     pub fn create_denom(
         deps: DepsMut,
         env: Env,
@@ -74,7 +88,7 @@ pub mod execute {
 
         let mut config = CONTRACT_CONFIG.load(deps.storage)?;
         config.denom_name = Some(denom.clone());
-        config.denom = Some("factory/".to_string() + info.sender.as_str() + "/" + denom.as_str());
+        config.denom = Some("factory/".to_string() + env.contract.address.as_str() + "/" + denom.as_str());
 
         let test_create_denom = sei_cosmwasm::SeiMsg::CreateDenom {
             subdenom: config.denom_name.clone().unwrap(),
@@ -137,10 +151,11 @@ pub mod execute {
         info: MessageInfo,
         recipient: String,  
         amount: String,
-        denom: String,
     ) ->  Result<Response<SeiMsg>, ContractError>{
         helpers::is_admin(deps.as_ref(), env, info.sender.to_string())?;
-        Ok(helpers::send_tokens(deps.api.addr_validate(recipient.as_str())?, coins(Uint128::from(amount.parse::<u64>().unwrap()).u128(), denom), "send"))
+        let config = CONTRACT_CONFIG.load(deps.storage)?;
+        
+        Ok(helpers::send_tokens(deps.api.addr_validate(recipient.as_str())?, coins(Uint128::from(amount.parse::<u64>().unwrap()).u128(), config.denom.unwrap()), "send"))
     }
 }
 
