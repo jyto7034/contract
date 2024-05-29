@@ -9,7 +9,7 @@ use cosmwasm_std::{
 };
 
 use crate::msg::ExecuteMsg;
-use crate::state::LOCK;
+use crate::state::{CONTRACT_CONFIG, LOCK};
 use crate::ContractError;
 
 pub fn get_contract_address(env: Env) -> StdResult<String> {
@@ -34,6 +34,16 @@ impl CwTemplateContract {
             funds: vec![funds],
         }
         .into())
+    }
+}
+
+pub fn is_admin(deps: Deps, _env: Env, sender: String) -> Result<(), ContractError> {
+    let config = CONTRACT_CONFIG.load(deps.storage)?;
+
+    if config.admin.to_string() == sender {
+        return Ok(());
+    } else {
+        return Err(ContractError::Unauthorized);
     }
 }
 

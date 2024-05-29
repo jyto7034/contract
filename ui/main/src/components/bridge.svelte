@@ -131,11 +131,11 @@
 	}
 </script>
 
-<div class="body h-[800px] w-[1700px] flex justify-center">
-	<div class="content-container h-[600px] w-[500px] mt-28 mr-20 outline outline-4 outline-offset-2">
-		<div class="address m-6 ml-12">
+<div class="body h-[70vh] w-[90vw] flex justify-center">
+	<div class="content-container h-[60vh] w-[25vw] mt-28 mr-20 outline outline-4 outline-offset-2">
+		<div class="address ml-7">
 			{#each bridge_descriptions as str}
-				<p class="mt-6 text-2xl">{@html str}</p>
+				<p class="mt-6 text-xl">{@html str}</p>
 			{/each}
 			
 			<p class="mt-6 text-2xl">{@html `$EGG Escrow Token Balance: <br>`}</p>
@@ -146,7 +146,7 @@
 		</div>
 	</div>
 	<div
-		class="content-container h-[600px] w-[800px] mt-28 mr-[300px] outline outline-4 outline-offset-2"
+		class="content-container h-[60vh] w-[40vw] mt-28 outline outline-4 outline-offset-2"
 	>
 		{#if is_connect}
 			<div class="flex flex-row h-[500px]">

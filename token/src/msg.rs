@@ -9,18 +9,8 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     ChangeAdmin { new_admin: String },
 
-    CreateDenom { denom_name: String },
-    MintToken { amount: String },
-    BurnToken { amount: String },
     SendToken { recipient: String, amount: String },
 
-    // swap token to sei
-    // ToSei { },
-
-    // swap sei to token
-    // ToToken { },
-
-    Lock { },
 }
 
 #[cw_serde]

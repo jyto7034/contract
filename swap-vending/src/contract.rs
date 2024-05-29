@@ -43,6 +43,12 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::ChangeConfig { token_address, nft_contract_address, exchange_rate } => {
+            execute::change_config(_deps, _env, _info, token_address, nft_contract_address, exchange_rate)
+        },
+        ExecuteMsg::ChangeAdmin { new_admin } => {
+            execute::change_admin(_deps, _env, _info, new_admin)
+        }
         ExecuteMsg::CreateTransaction {
             desired_item,
             nft_token_id,
@@ -66,6 +72,42 @@ pub mod execute {
     use cosmwasm_std::{coins, Addr};
 
     use super::*;
+
+    pub fn change_config(
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+        token_address: String,
+        nft_contract_address: String,
+        exchange_rate: u32,
+    ) -> Result<Response, ContractError> {
+        helpers::is_admin(deps.as_ref(), env.clone(), info.sender.clone().to_string())?;
+    
+        let mut config = CONTRACT_CONFIG.load(deps.storage)?;
+    
+        config.exchange_rate = Uint128::from(exchange_rate);
+        config.nft_contract_address = deps.api.addr_validate(nft_contract_address.as_str())?;
+        config.token_address = token_address;
+    
+        CONTRACT_CONFIG.save(deps.storage, &config)?;
+
+        Ok(Response::new())
+    }
+    pub fn change_admin(
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+        new_admin: String,
+    ) -> Result<Response, ContractError> {
+        helpers::is_admin(deps.as_ref(), env.clone(), info.sender.clone().to_string())?;
+
+        let mut config = CONTRACT_CONFIG.load(deps.storage)?;
+
+        config.admin = deps.api.addr_validate(new_admin.as_str())?;
+
+        CONTRACT_CONFIG.save(deps.storage, &config)?;
+        Ok(Response::new())
+    }
 
     pub fn lock(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
         let config = CONTRACT_CONFIG.load(deps.storage)?;
@@ -149,14 +191,14 @@ pub mod execute {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetBalances {} => to_json_binary(&query::get_balances(deps, _env)),
-    }
+        QueryMsg::GetBalances{}=>to_json_binary(&query::get_balances(deps,_env)),
+        QueryMsg::GetConfig {  } => to_json_binary(&query::get_config(deps,_env)), }
 }
 
 pub mod query {
     use cosmwasm_std::Addr;
 
-    use crate::{helpers::{self, get_contract_address}, msg::BalancesResponse};
+    use crate::{helpers::{self, get_contract_address}, msg::{BalancesResponse, ConfigResponse}};
 
     use super::*;
 
@@ -167,6 +209,18 @@ pub mod query {
         let balances = helpers::query_balance(_deps, Addr::unchecked(get_contract_address(_env.clone()).unwrap())).unwrap();
         BalancesResponse{
             coin: balances,
+        }
+    }
+
+    pub fn get_config(
+        _deps: Deps,
+        _env: Env,
+    ) -> ConfigResponse {
+        let config = CONTRACT_CONFIG.load(_deps.storage).unwrap();
+        ConfigResponse{
+            token_address: config.token_address,
+            nft_contract_address: config.nft_contract_address.to_string(),
+            exchange_rate: config.exchange_rate.u128() as u32,
         }
     }
 }

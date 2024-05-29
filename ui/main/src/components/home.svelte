@@ -13,13 +13,15 @@
 				<div
 					class="hover:cursor-pointer px-5 py-4 bg-gray-50 text-black text-2xl transition duration-200 hover:bg-gray-400"
 				>
-					<button on:click={() => window.location.href = '/swap'}>Buy $EGG</button>
+					<a href="https://app.astroport.fi/swap" target="_blank"><button>Buy $EGG</button></a>
 					<div class="px-10 bg-black py-[1px]"></div>
 				</div>
 				<div
 					class="hover:cursor-pointer px-5 py-4 bg-gray-50 text-black text-2xl transition duration-200 hover:bg-gray-400"
 				>
-					<button>Buy NFT</button>
+					<a href="https://pallet.exchange/collection/chickegg-v2" target="_blank"><button>
+						Buy NFT
+					</button></a>
 					<div class="px-10 bg-black py-[1px]"></div>
 				</div>
 			</div>

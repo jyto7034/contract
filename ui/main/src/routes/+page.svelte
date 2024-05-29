@@ -3,6 +3,13 @@
 	import Bridge from '../components/bridge.svelte';
 	import Stats from '../components/stats.svelte';
 	import Swap from '../components/swap.svelte';
+	import img  from '../lib/egg.PNG'
+	import redirect  from '../lib/favicon.png'
+	import discord_re  from '../lib/discord.PNG'
+	import x_re  from '../lib/x.PNG'
+	import left  from '../lib/left_chick.PNG'
+	import mid  from '../lib/mid_chick.PNG'
+	import right  from '../lib/right_chick.PNG'
 
 	import { _is_connect, _address, _wallet } from '../lib/store.ts'
 	import { connectWallet, address_formater, get_user_nft_list } from '../lib/helpers.ts';
@@ -16,12 +23,14 @@
 	_address.subscribe((value) => {
 		address = value;
 	});
-	let img = 'public/egg.PNG';
-	let redirect = 'public/favicon.png';
-	let discord_re = 'public/discord.PNG'
-	let x_re = 'public/x.PNG'
 
-	let chick_img = ['public/left_chick.PNG', 'public/mid_chick.PNG', 'public/right_chick.PNG']
+	// let img = '/egg.PNG';
+	// let redirect = '/favicon.png';
+	// let discord_re = '/discord.PNG'
+	// let x_re = '/x.PNG'
+
+	// let chick_img = ['/left_chick.PNG', '/mid_chick.PNG', '/right_chick.PNG']
+	let chick_img = [left, mid, right]
 
 	let bridgeComponent;
 	let tabs = ['Bridge', 'Stats', 'Swap'];
@@ -97,7 +106,7 @@
 				</a>
 			</div>
 			<div class="px-3 py-3 button-effect hover:cursor-pointer">
-				<a href="https://example.com" target="_blank">
+				<a href="https://discord.gg/ZtRyGwTVe5" target="_blank">
 					<img src={discord_re} alt="img" class="w-16 h-16 pt-1 pb-1" />
 				</a>
 			</div>

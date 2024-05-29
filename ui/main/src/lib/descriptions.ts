@@ -1,14 +1,15 @@
 export let bridge_descriptions = [
     `chickeggHYBRID`,
     `BRIDGE CONTRACT: <br>
-    EXqYZtA1d4Nx2WjYuQ <br>
-    1GvdeujFM8Vbvmjfdm <br>
-    JBJj7guc`,
+    sei1djhptj555xkq798ym0vfcgd <br>
+    qafv6dan4s5dlsguugdtqsq325z <br>
+    es57pdf9`,
     `TOKEN CONTRACT: <br>
-    EJPtJEDogxzDbvM8qv <br>
-    AsqYbLmPj5n1vQeqoA <br>
-    zj9Yfv3q`,
+    sei144r9jwcenshyu86qzw352jm <br>
+    5g3clvdrsjj29v5mv88cznar4xv <br>
+    tsqy87eu`,
 ];
+    
 
 export let home_descriptions = [
     `We are combining NFTs with Tokens to create a new EGGsperience in trading your beloved NFTs. <br>

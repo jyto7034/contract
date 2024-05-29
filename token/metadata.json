@@ -1,0 +1,24 @@
+{
+    "description": "EGG is a chickegg token.",
+    "denom_units": [
+        {
+            "denom": "factory/sei144r9jwcenshyu86qzw352jm5g3clvdrsjj29v5mv88cznar4xvtsqy87eu/EGG",
+            "exponent": 0,
+            "aliases": [
+                "uegg"
+            ]
+        },
+        {
+            "denom": "EGG",
+            "exponent": 6,
+            "aliases": [
+                "uegg"
+            ]
+        }
+    ],
+
+    "base": "factory/sei144r9jwcenshyu86qzw352jm5g3clvdrsjj29v5mv88cznar4xvtsqy87eu/EGG",
+    "display": "EGG",
+    "name": "EGG",
+    "symbol": "EGG"
+}

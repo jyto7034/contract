@@ -71,7 +71,7 @@ export async function get_balance() {
 	  const result = client.queryContractSmart(swapContractAddress, queryMsg);
 	  return result;
 	} catch (error) {
-	  console.error("Error querying NFTs owned by user:", error);
+	  console.error("Error querying balances:", error);
 	  return null;
 	}
 }
@@ -79,7 +79,7 @@ export async function get_balance() {
 export async function get_nft_balance() {
 	const rpcEndpoint = config.rpc;
 	const client = await CosmWasmClient.connect(rpcEndpoint);
-    const owner_queryMsg = { tokens: { owner: config.nft_owner } };
+    const owner_queryMsg = { tokens: { owner: config.swap_contract_address } };
     try {
         const result = await client.queryContractSmart(config.nft_contract_address, owner_queryMsg);
         return result;
@@ -134,7 +134,7 @@ export async function swap_token_to_nft(token_id: string) {
 	}
 
 	instruction.funds = [{
-		denom: config.denom,
+		denom: config.token_denom_address,
 		amount: config.exchange_rate
 	}]
 
@@ -202,64 +202,4 @@ export async function swap_nft_to_token(token_id: string) {
 		console.log(err);
 	})
 
-}
-
-
-// token to sei
-export async function swap_token_to_sei(token_amount: string) {
-	let wallet = getWalletSync();
-	const client = await getSigningCosmWasmClient(config.rpc, wallet.offlineSigner, {
-		gasPrice: GasPrice.fromString("0.01usei")
-	});
-
-	const instruction: any = {
-		contractAddress: config.swap_token_contract,
-		msg: {
-			to_sei: {}
-		}
-	}
-
-	instruction.funds = [{
-		denom: config.token_denom_address,
-		amount: token_amount,
-	}]
-
-	let instructions = []
-	instructions.push(instruction)
-	try{
-		const mintReceipt = await client.executeMultiple(wallet.accounts[0].address, instructions, "auto")
-		console.log(mintReceipt);
-	}catch(e: any){
-		console.log(e);
-	}
-}
-
-
-// sei to token
-export async function swap_sei_to_token(token_amount: string) {
-	let wallet = getWalletSync();
-	const client = await getSigningCosmWasmClient(config.rpc, wallet.offlineSigner, {
-		gasPrice: GasPrice.fromString("0.01usei")
-	});
-
-	const instruction: any = {
-		contractAddress: config.swap_token_contract,
-		msg: {
-			to_token: {}
-		}
-	}
-
-	instruction.funds = [{
-		denom: "usei",
-		amount: token_amount,
-	}]
-
-	let instructions = []
-	instructions.push(instruction)
-	try{
-		const mintReceipt = await client.executeMultiple(wallet.accounts[0].address, instructions, "auto")
-		console.log(mintReceipt);
-	}catch(e: any){
-		console.log(e);
-	}
 }
